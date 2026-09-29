@@ -1,0 +1,351 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Paquetes para compatibilidad con pdfLaTeX ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{lmodern}
+
+% --- Margenes y Formato ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{array}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Tarea 1: Escape de la Torre},
+    pdfpagemode=FullScreen,
+}
+
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+% ==============================================================================
+% PORTADA
+% ==============================================================================
+\begin{titlepage}
+    \centering
+    \vspace*{0.5cm}
+    \includegraphics[width=0.35\textwidth]{OIP.png}\\[0.8cm]
+    
+    {\Large \textbf{Universidad de Concepción}}\\[0.3cm]
+    {\large Facultad de Ingeniería}\\[0.2cm]
+    {\large Departamento de Informática y Ciencias de la Computación}\\[0.2cm]
+    {\large Asignatura: Inteligencia Artificial (501351)}\\[0.2cm]
+    {\large Profesor: Julio Godoy}\\[2.5cm]
+    
+    \rule{\linewidth}{0.5mm}\\[0.4cm]
+    {\huge \bfseries Tarea 1: Escape de la Torre}\\[0.2cm]
+    \rule{\linewidth}{0.5mm}\\[3cm]
+    
+    \vfill
+    
+    \begin{minipage}{0.8\textwidth}
+        \begin{flushright}
+            \textbf{Autor:} Francisco Arentsen San Martín\\[0.2cm]
+            \textbf{Fecha:} Septiembre de 2026
+        \end{flushright}
+    \end{minipage}
+    
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ==============================================================================
+% 1. INTRODUCCIÓN
+% ==============================================================================
+\section{Introducción}
+
+\subsection{Contexto y tema del informe}
+Este informe corresponde a la Tarea 1 ``Escape de la Torre''. El enunciado plantea un edificio en llamas donde un grupo de personas debe alcanzar la única zona de escape de cada piso antes de que el fuego las alcance. Los pasillos son estrechos, por lo que una alta concentración de personas en una misma vía genera embotellamientos que retrasan el flujo.
+
+El informe describe el diseño, la implementación y la evaluación de un simulador de evacuación en una grilla, donde:
+\begin{itemize}
+    \item Los agentes se mueven de forma discreta (arriba, abajo, izquierda, derecha o esperar).
+    \item El fuego se propaga cada $k$ turnos hacia casillas adyacentes, de forma irreversible; las casillas quemadas son intransitables y los agentes alcanzados por el fuego mueren.
+    \item Dos agentes no pueden ocupar la misma casilla, y las zonas con tránsito reciente elevado tienen un costo mayor (congestión).
+\end{itemize}
+
+Sobre este ambiente se implementaron cinco estrategias, una por cada paradigma pedido:
+\begin{itemize}
+    \item \textbf{Búsqueda no informada} (2 algoritmos): BFS y DFS.
+    \item \textbf{Búsqueda informada} (2 algoritmos, con heurística admisible): GBFS y A*, ambos con distancia de Manhattan.
+    \item \textbf{Optimización bioinspirada} (1 algoritmo): Algoritmo Genético (GA).
+\end{itemize}
+
+\subsection{Objetivos}
+
+\paragraph{Objetivo general:}
+Implementar el sistema de navegación y toma de decisiones de los agentes bajo tres paradigmas (búsqueda no informada, informada y bioinspirada), minimizando las pérdidas humanas y mitigando la congestión, y compararlos mediante un benchmark controlado.
+
+\paragraph{Objetivos específicos:}
+\begin{itemize}
+    \item Diseñar un ambiente por capas (estructura, fuego, agentes) reutilizable por todos los algoritmos.
+    \item Implementar los cinco agentes con una interfaz común, de modo que sean intercambiables sin modificar el resto del sistema.
+    \item Definir una función de costo por congestión (lineal, cuadrática o exponencial) e incorporarla en los algoritmos ponderados.
+    \item Evaluar cada combinación (mapa, algoritmo) con las métricas obligatorias del enunciado: tasa de supervivencia y estadísticos descriptivos (media, desviación estándar, mínimo, máximo) de los turnos de despeje.
+    \item Analizar ventajas, limitaciones y costos de cada enfoque.
+\end{itemize}
+
+\subsection{Metodología de desarrollo y uso de IA generativa}
+El trabajo se desarrolló en las siguientes etapas:
+\begin{enumerate}
+    \item Definición de la idea: reglas del ambiente, entidades y métricas.
+    \item Escritura del pseudocódigo de las clases (\texttt{Ambiente}, \texttt{Controlador}, y \texttt{Agente} y \texttt{Gestor} de cada algoritmo).
+    \item Entrega del pseudocódigo a una IA generativa para que generara las clases en Python.
+    \item Pruebas sobre el código generado y refactorización a partir de los errores y comportamientos indeseados encontrados (incluyendo varias rondas de depuración guiada de bugs de concurrencia entre agentes, descritas en la sección \ref{sec:problemas}).
+    \item Ejecución del benchmark y análisis de resultados.
+\end{enumerate}
+
+De acuerdo con lo que exige el enunciado, se declara explícitamente que:
+\begin{itemize}
+    \item El código de los agentes, el ambiente, el controlador y el benchmark fue generado con IA generativa (Claude, de Anthropic) a partir de pseudocódigo propio, y luego probado, depurado y refactorizado por el autor a lo largo de varias iteraciones.
+    \item El algoritmo genético se adaptó a partir del repositorio \texttt{Genetic-Algorithm-Pathfinding} (ver sección \ref{sec:referencias}).
+    \item Los mapas provienen de \texttt{Moving AI Lab} (ver sección \ref{sec:ambiente}), editados y convertidos al formato del proyecto con asistencia de la misma herramienta.
+\end{itemize}
+
+% ==============================================================================
+% 2. ESTRUCTURA DEL PROYECTO
+% ==============================================================================
+\section{Estructura del Proyecto}
+
+\subsection{Componentes}
+El proyecto se divide en tres grupos de módulos con responsabilidades separadas:
+
+\paragraph{(a) Ambiente (\texttt{src/core/ambiente.py}):}
+Representa el mundo: el mapa, el fuego, la posición de los agentes y el contador de tránsito para la congestión. No toma decisiones; solo almacena estado y ofrece operaciones sobre él (propagar fuego, colocar agentes, calcular costo de una casilla).
+
+\paragraph{(b) Algoritmos (\texttt{src/algorithms/}: \texttt{bfs.py}, \texttt{dfs.py}, \texttt{gbfs.py}, \texttt{a\_star.py}, \texttt{genetic.py}):}
+Cada archivo define dos clases: un \texttt{Agente} (toma las decisiones individuales de movimiento) y un \texttt{Gestor} (coordina a todos los agentes de esa estrategia). Todos los gestores exponen la misma interfaz, lo que permite que el controlador y el benchmark los traten de forma idéntica.
+
+\paragraph{(c) Controlador (\texttt{src/core/controlador.py}):}
+Clase \texttt{ControladorSimulacion}. Orquesta el ciclo de vida de un turno. Es la interfaz única que usan tanto la GUI como el benchmark, de modo que ambos ejecutan exactamente la misma lógica.
+
+Adicionalmente, \texttt{benchmark.py} (\texttt{src/simulation/}) ejecuta los experimentos masivos y guarda los resultados en un CSV, y \texttt{gui.py} (\texttt{src/ui/}) permite visualizar la simulación en tiempo real.
+
+\subsection{Flujo de un turno}
+Cada llamada a \texttt{ControladorSimulacion.avanzar\_turno()} ejecuta, en orden:
+\begin{enumerate}
+    \item \textbf{Movimiento:} \texttt{gestor.mover\_turno()}. Cada agente activo se mueve una casilla (o espera) en secuencia, y la Capa 2 se resincroniza después de cada agente para evitar colisiones dentro del mismo turno.
+    \item \textbf{Registro de tránsito:} por cada agente vivo y no escapado se incrementa el contador de tránsito de su casilla actual; luego todo el contador decae con un factor de 0.7. Así la congestión refleja el tráfico reciente y no se acumula indefinidamente.
+    \item \textbf{Propagación del fuego:} cada $k_{\text{fuego}}$ turnos el fuego se expande una casilla en las cuatro direcciones.
+    \item \textbf{Impacto del fuego:} \texttt{gestor.evaluar\_impacto\_fuego()} marca como muertos los agentes cuya casilla quedó en llamas.
+    \item \textbf{Registro de escapes:} se anota en qué turno escapó cada agente (solo la primera vez).
+\end{enumerate}
+
+La simulación termina cuando todos los agentes escaparon o murieron, o cuando se alcanza el límite \texttt{max\_turnos} (1000 por defecto).
+
+\subsection{Interfaz común de los gestores}
+Todos los gestores implementan: \texttt{mover\_turno()}, \texttt{evaluar\_impacto\_fuego()}, \texttt{simulacion\_terminada()} y \texttt{\_sincronizar\_capa\_agentes()}. Todos los agentes tienen los atributos \texttt{id}, \texttt{pos\_actual}, \texttt{vivo} y \texttt{escapado}. Los movimientos son de 4-conectividad (arriba, abajo, izquierda, derecha).
+
+\subsection{Métricas}
+\texttt{obtener\_estadisticas()} entrega el número de sobrevivientes, el total de agentes y los turnos de despeje. Los turnos de despeje se definen como el turno en que escapó el último sobreviviente, y no el turno en que terminó la simulación (ambos pueden diferir si el último evento fue la muerte de un agente rezagado). Si en una iteración no escapa ningún agente, esa iteración no aporta a las estadísticas de turnos (solo a la tasa de supervivencia).
+
+% ==============================================================================
+% 3. AMBIENTE
+% ==============================================================================
+\section{Ambiente}
+\label{sec:ambiente}
+
+\subsection{Origen de los mapas}
+Los mapas se obtuvieron de Moving AI Lab (\url{https://www.movingai.com/}), un repositorio de mapas de referencia para problemas de pathfinding. Se usaron tres mapas de 64x64 celdas para representar los niveles de dificultad topológica del enunciado:
+\begin{itemize}
+    \item \textbf{Mapa 1} (\texttt{ambiente1.txt}): alta densidad de obstáculos / cuello de botella (pasillos angostos que convergen hacia la salida).
+    \item \textbf{Mapa 2} (\texttt{ambiente2.txt}): densidad media / laberinto corporativo (salas conectadas por intersecciones y cruces ciegos).
+    \item \textbf{Mapa 3} (\texttt{ambiente3.txt}): baja densidad / dispersión abierta (semiabierto, con múltiples rutas alternativas).
+\end{itemize}
+
+Particularidades encontradas al revisar los tres mapas en detalle:
+\begin{itemize}
+    \item El ancho de la salida varía: Mapa 1 tiene 4 celdas de ancho, Mapa 2 tiene 2 celdas, y Mapa 3 tiene una sola celda.
+    \item El Mapa 2 define dos orígenes de fuego en el archivo (dos celdas con el dígito 3), pero \texttt{Ambiente.\_procesar\_capas()} solo toma el primero que encuentra, dejando el segundo inactivo.
+    \item Estimación de márgenes temporales antes de que el fuego alcance la salida ($k_{\text{fuego}}=3$):
+    \begin{itemize}
+        \item \textbf{Mapa 1:} partida $\rightarrow$ salida = 117 pasos; fuego $\rightarrow$ salida = 66 celdas $\rightarrow$ fuego llega turno $\sim 198$; \textbf{margen $\sim 81$ turnos}.
+        \item \textbf{Mapa 2:} partida $\rightarrow$ salida = 119 pasos; fuego $\rightarrow$ salida = 61 celdas $\rightarrow$ fuego llega turno $\sim 183$; \textbf{margen $\sim 64$ turnos}.
+        \item \textbf{Mapa 3:} partida $\rightarrow$ salida = 150 pasos; fuego $\rightarrow$ salida = 59 celdas $\rightarrow$ fuego llega turno $\sim 177$; \textbf{margen $\sim 27$ turnos}.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Procesamiento}
+Los mapas originales fueron editados a dimensiones 64x64 y convertidos al formato numérico mediante \texttt{src/core/conversor\_de\_mapas.py}:
+\begin{itemize}
+    \item 0: espacio libre, 1: pared, 2: salida, 3: origen del fuego, 4: punto de partida.
+\end{itemize}
+
+\subsection{La clase Ambiente}
+El mapa se carga en una matriz 3D de NumPy de tamaño $(64, 64, 3)$:
+\begin{itemize}
+    \item \textbf{Capa 0 (estructural):} 0 libre, 1 pared, 2 salida.
+    \item \textbf{Capa 1 (fuego):} 1 si está en llamas.
+    \item \textbf{Capa 2 (agentes):} 1 si hay un agente vivo y activo.
+\end{itemize}
+
+\paragraph{Función de costo por congestión:}
+Calcula el costo de transitar por la casilla $(f, c)$ según su ocupación de tránsito reciente $O_{f,c}$:
+\begin{itemize}
+    \item \textbf{Lineal:} $C(f,c) = 1 + \alpha \cdot O_{f,c}$
+    \item \textbf{Cuadrático (defecto):} $C(f,c) = 1 + \alpha \cdot O_{f,c}^2$
+    \item \textbf{Exponencial:} $C(f,c) = \exp(\alpha \cdot O_{f,c})$
+\end{itemize}
+El costo siempre es $\ge 1$, asegurando la admisibilidad de la heurística de Manhattan en A*.
+
+% ==============================================================================
+% 4. AGENTES
+% ==============================================================================
+\section{Agentes}
+
+\subsection{Enfoque general}
+Los cinco algoritmos comparten la misma arquitectura base:
+\begin{itemize}
+    \item \textbf{Agente:} almacena su estado interno, ruta y posición actual.
+    \item \textbf{Gestor:} coordina el ciclo de turnos, sincroniza la Capa 2 y evalúa el impacto del fuego.
+\end{itemize}
+
+\subsection{BFS}
+Explora con una cola FIFO. Cómputo de ruta más corta en número de pasos (costo uniforme = 1). Replanifica si la siguiente casilla de la ruta está bloqueada por otro agente o fuego.
+
+\subsection{DFS}
+Evaluación de vecinos locales. Distingue entre \textit{bloqueo permanente} (muro, fuego, visitado) y \textit{bloqueo temporal} (agente). Ante un bloqueo temporal, el agente espera en el lugar en vez de retroceder. Presenta riesgo de \textit{deadlock} estructural en pasillos angostos.
+
+\subsection{GBFS (Greedy Best-First Search)}
+Cola de prioridad ordenada por $(h, C_{\text{congestión}}, \text{posición})$, donde $h$ es la distancia de Manhattan a la salida. No acumula el costo $g$. Voraz y rápido.
+
+\subsection{A*}
+Cola de prioridad según $f = g + h$, donde $g$ acumula el costo de tránsito con congestión $C(f,c) \ge 1$ y $h$ es Manhattan. Incluye descartes de nodos obsoletos y replanificación periódica cada 4 pasos.
+
+\subsection{Algoritmo Genético (GA)}
+Adaptado de \texttt{Genetic-Algorithm-Pathfinding}.
+\begin{itemize}
+    \item \textbf{Cromosoma:} secuencia de 20 movimientos.
+    \item \textbf{Población y Evolución:} 25 individuos, 15 generaciones, cruce en un punto ($p=0.8$), mutación ($p=0.05$), selección por torneo ($k=3$).
+    \item \textbf{Fitness:} premia acercarse a la salida ($1000 + (\text{longitud} - \text{pasos}) \cdot 10$ si llega), penaliza casillas repetidas ($0.5$) y congestión ($0.3$).
+\end{itemize}
+
+\subsection{Problemas encontrados durante el desarrollo}
+\label{sec:problemas}
+\begin{itemize}
+    \item Resincronización inmediata de la Capa 2 tras cada movimiento individual para evitar colisiones intra-turno.
+    \item Ajuste de métricas para registrar el turno de escape exacto de cada agente individual.
+    \item Corrección del GA al cambiar la selección por ruleta (sensible a fitness negativo) por selección por torneo.
+\end{itemize}
+
+% ==============================================================================
+% 5. EXPERIMENTOS
+% ==============================================================================
+\section{Experimentos}
+
+\subsection{Descripción de las pruebas}
+Se realizaron 128 iteraciones independientes por combinación de (Mapa, Algoritmo), evaluando un total de 3200 agentes por combinación (25 agentes por iteración). Se utilizaron semillas fijas $((i+1) \cdot 100)$ para asegurar reproducibilidad exacta.
+
+\subsection{Resultados}
+
+\begin{table}[htbp]
+\centering
+\caption{Tasa de supervivencia y turnos de despeje (128 iteraciones por combinación).}
+\label{tab:resultados}
+\vspace{0.2cm}
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Mapa} & \textbf{Algoritmo} & \textbf{Superv. (\%)} & \textbf{Media} & \textbf{Desv. Est.} & \textbf{Mín} & \textbf{Máx} \\
+\midrule
+Mapa 1 & BFS  & 100.00 & 126.93 & 1.22 & 124 & 130 \\
+Mapa 1 & DFS  & 0.00   & N/A    & N/A  & N/A & N/A \\
+Mapa 1 & GBFS & 100.00 & 135.80 & 2.61 & 129 & 142 \\
+Mapa 1 & A*   & 100.00 & 128.95 & 2.24 & 123 & 134 \\
+Mapa 1 & GA   & 4.50   & 154.77 & 15.37 & 117 & 186 \\
+\midrule
+Mapa 2 & BFS  & 37.50  & 120.08 & 14.46 & 106 & 161 \\
+Mapa 2 & DFS  & 0.00   & N/A    & N/A  & N/A & N/A \\
+Mapa 2 & GBFS & 49.75  & 152.66 & 3.51 & 144 & 167 \\
+Mapa 2 & A*   & 39.38  & 157.41 & 3.51 & 152 & 163 \\
+Mapa 2 & GA   & 0.00   & N/A    & N/A  & N/A & N/A \\
+\midrule
+Mapa 3 & BFS  & 97.97  & 160.19 & 3.32 & 152 & 164 \\
+Mapa 3 & DFS  & 0.00   & N/A    & N/A  & N/A & N/A \\
+Mapa 3 & GBFS & 45.88  & 161.62 & 2.52 & 151 & 164 \\
+Mapa 3 & A*   & 75.88  & 161.70 & 3.44 & 142 & 164 \\
+Mapa 3 & GA   & 0.00   & N/A    & N/A  & N/A & N/A \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Tiempo de ejecución total por combinación (segundos).}
+\label{tab:tiempos}
+\vspace{0.2cm}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Algoritmo} & \textbf{Mapa 1 (s)} & \textbf{Mapa 2 (s)} & \textbf{Mapa 3 (s)} \\
+\midrule
+BFS  & 460.98  & 261.21  & 95.09   \\
+DFS  & 654.44  & 84.28   & 184.95  \\
+GBFS & 81.70   & 76.43   & 103.45  \\
+A*   & 1223.08 & 614.02  & 736.14  \\
+GA   & 1541.58 & 1986.95 & 2972.86 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Discusión de los resultados}
+\begin{itemize}
+    \item \textbf{Mapa 1:} BFS, GBFS y A* alcanzaron el 100\% de supervivencia debido al amplio margen temporal ($\sim 81$ turnos) y al ancho de la salida (4 celdas).
+    \item \textbf{Mapa 2:} Muestra la mayor dificultad para los algoritmos clásicos (supervivencia entre 37.5\% y 49.75\%) debido a la complejidad del laberinto y el menor ancho de salida (2 celdas).
+    \item \textbf{Mapa 3:} Muestra una contradicción con la hipótesis de dificultad topológica: aunque no tiene muros internos densos, la salida tiene solo 1 celda de ancho y el margen temporal es el más reducido ($\sim 27$ turnos). BFS logró 97.97\% al no desviarse, mientras que A* (75.88\%) sufrió por rodeos causados por la función de congestión.
+    \item \textbf{DFS y GA:} DFS obtuvo 0\% de supervivencia en todos los casos debido a \textit{deadlocks} por bloqueo mutuo. El GA resultó computacionalmente ineficiente y con un desempeño casi nulo (4.5\% en Mapa 1 y 0\% en el resto).
+\end{itemize}
+
+% ==============================================================================
+% 6. CONCLUSIONES
+% ==============================================================================
+\section{Conclusiones}
+\begin{itemize}
+    \item Se construyó un ambiente multicapa y un controlador único reproducibles con semillas por iteración.
+    \item BFS resultó ser la estrategia más robusta en general, demostrando que la mayor complejidad algorítmica no garantiza mayor supervivencia si la función de costo no contempla explícitamente el avance del fuego.
+    \item La dificultad real de un escenario depende principalmente de la relación entre el ancho del cuello de botella de escape y el tiempo crítico de llegada del fuego.
+\end{itemize}
+
+% ==============================================================================
+% 7. COSAS A MEJORAR
+% ==============================================================================
+\section{Cosas a Mejorar}
+\begin{itemize}
+    \item Resolver el \textit{deadlock} de DFS mediante un mecanismo de cesión de paso tras $N$ turnos de espera consecutiva.
+    \item Replantear la función de fitness del GA o la frecuencia de re-evolución para reducir su costo computacional.
+    \item Incorporar el riesgo de propagación del fuego en la función de costo de A* y GBFS.
+    \item Corregir la activación del segundo foco de fuego en el Mapa 2.
+    \item Paralelizar la ejecución del benchmark.
+\end{itemize}
+
+% ==============================================================================
+% 8. LINKS Y REFERENCIAS
+% ==============================================================================
+\section{Links y Referencias}
+\label{sec:referencias}
+
+\begin{itemize}
+    \item \textbf{Repositorio de origen del Algoritmo Genético:}\\
+    \url{https://github.com/Pojzo/Genetic-Algorithm-Pathfinding.git}
+    
+    \item \textbf{Moving AI Lab (Repositorio de mapas):}\\
+    \url{https://www.movingai.com/}
+    
+    \item \textbf{Repositorio del proyecto:}\\
+    \url{https://github.com/Farentsen999/Tarea1_IA.git}
+    
+    \item \textbf{Enunciado:} Tarea 1 ``Escape de la Torre'', asignatura Inteligencia Artificial, Universidad de Concepción, Septiembre de 2026.
+\end{itemize}
+
+\end{document}

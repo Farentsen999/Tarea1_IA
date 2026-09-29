@@ -23,9 +23,9 @@ ESTRATEGIAS = {
 }
 
 MAPAS = {
-    "Mapa 1": "data/mapas/ambiente1.txt",
-    "Mapa 2": "data/mapas/ambiente2.txt",
-    "Mapa 3": "data/mapas/ambiente3.txt"
+    "Mapa 1": "mapas/ambiente1.txt",
+    "Mapa 2": "mapas/ambiente2.txt",
+    "Mapa 3": "mapas/ambiente3.txt"
 }
 
 

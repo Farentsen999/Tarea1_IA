@@ -8,7 +8,7 @@ from src.algorithms.genetic import GestorAgentesGen
 
 
 def main():
-    MAPA_SELECCIONADO = "data/mapas/ambiente3.txt"
+    MAPA_SELECCIONADO = "mapas/ambiente3.txt"
     ESTRATEGIA_SELECCIONADA = GestorAgentesDFS
 
     simulador = SimuladorGUI(
