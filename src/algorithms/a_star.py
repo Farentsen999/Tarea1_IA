@@ -19,6 +19,8 @@ class AgenteAStar:
         
         self.camino = []          # Lista de coordenadas (f, c) planificadas por A*
         self.paso_actual_idx = 0  # Índice de la siguiente casilla a la que debe avanzar
+        self.replan_cada = 4      # Cada cuántos pasos se replanifica para captar la congestión actual
+        self.pasos_desde_plan = 0
 
     def _heuristica_manhattan(self, pos, salidas):
         """
@@ -63,6 +65,9 @@ class AgenteAStar:
         while open_set:
             # Extrae el nodo con la menor heurística.
             _, g_actual, actual = heapq.heappop(open_set)
+            # Entrada obsoleta: ya se encontró un camino mejor a este nodo
+            if g_actual > g_score.get(actual, float('inf')):
+                continue
             f_act, c_act = actual
 
             # Criterio de término de la búsqueda: Alcanzar una casilla de salida
@@ -82,8 +87,8 @@ class AgenteAStar:
 
                     # El agente solo explora casillas sin paredes ni fuego
                     if not es_pared and not con_fuego:
-                        # Costo uniforme de 1 paso entre casillas adyacentes
-                        nuevo_g = g_actual + 1
+                        # Costo de entrada = 1 + penalización por congestión (>= 1, la heurística sigue siendo admisible)
+                        nuevo_g = g_actual + ambiente.costo_transito(nf, nc)
 
                         if vecino not in g_score or nuevo_g < g_score[vecino]:
                             g_score[vecino] = nuevo_g
@@ -108,6 +113,7 @@ class AgenteAStar:
             # Se omite el primer elemento (índice 0) porque corresponde a la posición actual
             self.camino = camino_reconstruido[1:]
             self.paso_actual_idx = 0
+            self.pasos_desde_plan = 0
 
     def paso_astar(self, ambiente):
         """
@@ -121,11 +127,16 @@ class AgenteAStar:
         if not self.vivo or self.escapado:
             return
 
-        # 1. Validación de Condición de Victoria
+        # 1a. Validación de Condición de Victoria
         f, c = self.pos_actual
         if ambiente.matriz_3d[f, c, 0] == 2:
             self.escapado = True
             return
+
+        # 1b. Replanificación periódica: sin esto, la congestión solo se
+        #     consideraba al planificar y luego se ignoraba durante toda la ruta.
+        if self.camino and self.pasos_desde_plan >= self.replan_cada:
+            self.calcular_ruta_astar(ambiente)
 
         # 2. Si no existe un camino planificado o se terminaron los pasos, recalcula con A*
         if not self.camino or self.paso_actual_idx >= len(self.camino):
@@ -146,6 +157,10 @@ class AgenteAStar:
             # Casilla libre: Avanza exitosamente
             self.pos_actual = siguiente_pos
             self.paso_actual_idx += 1
+            # Escape en el mismo turno en que se pisa la salida
+            if ambiente.matriz_3d[nf, nc, 0] == 2:
+                self.escapado = True
+            self.pasos_desde_plan += 1
         else:
             # Casilla ocupada o inaccesible dinámicamente: Fuerza una re-planificación con A*
             self.calcular_ruta_astar(ambiente)

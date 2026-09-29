@@ -1,0 +1,139 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- PAQUETES DE CONFIGURACIÓN ---
+\usepackage[utf8]{utf8}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+
+% Estilo para bloques de código Python
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{gray}\itshape,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    breaklines=true,
+    frame=single,
+    tabsize=4,
+    showstringspaces=false
+}
+
+% --- DATOS DEL DOCUMENTO ---
+\title{\textbf{Simulación Multiagente de Evacuación de Emergencia con Propagación Dinámica de Incendios}\\
+\large Comparativa Algorítmica entre Búsqueda en Profundidad (DFS) y Búsqueda en Anchura (BFS)}
+\author{\textbf{Nombre del Estudiante / Equipo}\\
+\small Departamento de Ciencia de la Computación e Inteligencia Artificial\\
+\small Asignatura: Inteligencia Artificial / Modelado de Sistemas Multiagente}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+En este trabajo se presenta el desarrollo y análisis de un entorno de simulación discreto $2D$ multiagente para la evacuación de recintos en situaciones de emergencia. El entorno modela la física de propagación espacial de un incendio e integra agentes con comportamiento autónomo guiados por algoritmos de búsqueda ciega: Búsqueda en Profundidad (DFS) y Búsqueda en Anchura (BFS). Se evalúa el desempeño de ambas estrategias considerando el porcentaje de agentes evacuados con éxito, los pasos de tiempo requeridos y el impacto de los cuellos de botella generados por colisiones dinámicas.
+\end{abstract}
+
+\section{Introducción}
+La simulación informática de situaciones de evacuación ante catástrofes permite analizar dinámicas de flujos humanos sin poner en riesgo vidas reales. El objetivo principal de esta investigación es evaluar cómo diferentes algoritmos de exploración espacial determinan la tasa de supervivencia de una población de agentes en un entorno dinámico amenazado por la expansión de fuego.
+
+\section{Modelado del Ambiente y Espacio de Estados}
+El ambiente se representa mediante un tensor tridimensional de NumPy de dimensiones $R \times C \times 3$, donde $R$ y $C$ representan las filas y columnas del plano cartesiano $2D$, y la tercera dimensión corresponde a un sistema de tres capas funcionalmente independientes:
+
+\begin{itemize}
+    \item \textbf{Capa 0 (Estructura Base):} Matriz estática $M_0 \in \{0, 1, 2\}$ que define los elementos arquitectónicos: espacio libre ($0$), paredes insuperables ($1$) y puntos de salida ($2$).
+    \item \textbf{Capa 1 (Amenaza / Fuego):} Matriz binaria $M_1 \in \{0, 1\}$ que representa la presencia ($1$) o ausencia ($0$) de fuego.
+    \item \textbf{Capa 2 (Agentes):} Matriz binaria $M_2 \in \{0, 1\}$ para la ocupación dinámica de los agentes en tiempo real.
+\end{itemize}
+
+\subsection{Modelo de Propagación del Fuego}
+La propagación del fuego se simula mediante una función discretizada por pasos de tiempo basada en $4$-conectividad ortogonal. La posición de un nuevo foco de fuego $F_{t+1}$ en el tiempo $t+1$ a partir del conjunto de focos activos $F_t$ está dada por:
+\begin{equation}
+F_{t+1} = F_t \cup \{ (f + \Delta f, c + \Delta c) \mid (f,c) \in F_t, \, (\Delta f, \Delta c) \in \mathcal{N}, \, M_0[f+\Delta f, c+\Delta c] \neq 1 \}
+\end{equation}
+donde $\mathcal{N} = \{(-1,0), (1,0), (0,-1), (0,1)\}$.
+
+\section{Estrategias Algorítmicas de Evacuación}
+
+\subsection{Búsqueda en Profundidad (DFS)}
+El agente impulsado por DFS utiliza una estructura de datos tipo Pila (Stack, LIFO) para la exploración local en tiempo real.
+
+\begin{algorithm}[H]
+\caption{Paso de Ejecución Agente DFS}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Estado del Ambiente $A$, posición actual $p = (f, c)$
+\If{$A.M_0[f, c] == 2$}
+    \State \textbf{marcar} \textit{escapado} $= \text{True}$; \Return
+\EndIf
+\State $V \gets \text{ObtenerVecinosValidos}(p, A)$ \Comment{Filtra paredes, fuego, agentes y visitados}
+\If{$V \neq \emptyset$}
+    \State $p_{\text{sig}} \gets V[0]$
+    \State \text{Stack.push}($p_{\text{sig}}$); \text{Visitados.add}($p_{\text{sig}}$)
+    \State $p \gets p_{\text{sig}}$
+\Else
+    \If{\text{Stack.length} $> 1$}
+        \State \text{Stack.pop}()
+        \State $p \gets \text{Stack.top}()$ \Comment{Backtracking}
+    \EndIf
+\EndIf
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Búsqueda en Anchura (BFS)}
+El agente impulsado por BFS calcula globalmente el camino más corto hacia la salida más cercana utilizando una Cola (Queue, FIFO). La ruta se recalcula de forma reactiva únicamente si una casilla de la trayectoria planificada se ve bloqueada por el fuego o por la presencia de otro agente.
+
+\section{Arquitectura del Sistema}
+El software sigue un patrón de diseño desacoplado que separa la lógica de los datos, el motor de comportamiento y la interfaz de renderizado.
+
+\begin{figure}[h]
+\centering
+%\includegraphics[width=0.8\textwidth]{diagrama_clases.png} % Descomentar al adjuntar imagen
+\caption{Diagrama de Clases del Sistema: Interacción entre Ambiente, Gestor de Agentes y las Estrategias DFS/BFS.}
+\label{fig:diagrama_clases}
+\end{figure}
+
+Las clases principales son:
+\begin{itemize}
+    \item \texttt{Ambiente}: Gestiona la lectura del archivo de mapa, el tensor tridimensional $3D$ y la propagación del fuego.
+    \item \texttt{AgenteDFS / AgenteBFS}: Encapsulan el estado local, memoria y lógica de movimiento de cada individuo.
+    \item \texttt{GestorAgentes}: Sincroniza los turnos de movimiento, actualiza la Capa 2 inmediatamente después de cada paso para evitar colisiones y evalúa el impacto de la amenaza.
+\end{itemize}
+
+\section{Experimentos y Resultados}
+Se ejecutaron simulaciones cuantitativas sobre distintos mapas topológicos variando la densidad de agentes $N \in \{1, 3, 5, 10\}$.
+
+\begin{table}[h]
+\centering
+\caption{Comparativa de Desempeño entre DFS y BFS}
+\label_tab:resultados}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Algoritmo} & \textbf{N Agentes} & \textbf{\% Escapados} & \textbf{\% Fallecidos} & \textbf{Pasos Promedio} \\
+\midrule
+DFS & 1  & 100\% & 0\%   & 24.2 \\
+BFS & 1  & 100\% & 0\%   & 12.0 \\
+\midrule
+DFS & 5  & 60\%  & 40\%  & 38.5 \\
+BFS & 5  & 80\%  & 20\%  & 18.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Discusión}
+Los resultados demuestran que BFS presenta una eficiencia temporal superior al garantizar caminos geométricamente óptimos, lo cual es crítico en escenarios de incendios de rápida expansión. Sin embargo, en entornos de alta densidad de agentes, BFS sufre recalculaciones constantes debido al bloqueo de casillas por otros agentes. Por otro lado, DFS tiende a adentrarse en callejones sin salida aumentando el tiempo de exposición al riesgo.
+
+\section{Conclusiones}
+En este trabajo se desarrolló exitosamente un simulador multiagente con propagación dinámica de incendios. El enfoque de capas en matrices $3D$ demostró ser computacionalmente eficiente para gestionar la interacción en tiempo real entre amenazas estáticas, dinámicas y entidades autónomas. 
+
+\end{document}

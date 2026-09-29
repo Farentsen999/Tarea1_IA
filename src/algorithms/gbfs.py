@@ -53,7 +53,7 @@ class AgenteGBFS:
         open_set = []
         
         h_inicial = self._heuristica_manhattan(inicio, ambiente.posiciones_salidas)
-        heapq.heappush(open_set, (h_inicial, inicio))
+        heapq.heappush(open_set, (h_inicial, 0.0, inicio))
         
         # Diccionarios de seguimiento para reconstruir la ruta y evaluar costos
         padres = {inicio: None} # Guarda el nodo previo para cada nodo explorado: padres[hijo] = padre
@@ -64,7 +64,7 @@ class AgenteGBFS:
 
         while open_set:
             # Extrae el nodo con la menor heurística
-            _, actual = heapq.heappop(open_set)
+            _, _, actual = heapq.heappop(open_set)
             f_act, c_act = actual
 
             # Criterio de término de la búsqueda: Alcanzar una casilla de salida
@@ -88,7 +88,9 @@ class AgenteGBFS:
                         padres[vecino] = actual
                         
                         h = self._heuristica_manhattan(vecino, ambiente.posiciones_salidas)
-                        heapq.heappush(open_set, (h, vecino))
+                        costo_cong = ambiente.costo_transito(nf, nc)
+                        # Prioridad = h + penalización local por congestión (sigue siendo voraz: sin g acumulado)
+                        heapq.heappush(open_set, (h + (costo_cong - 1.0), h, vecino))
 
         # Reconstrucción del camino trazando desde la salida hasta la posición actual
         if salida_alcanzada:
@@ -103,7 +105,7 @@ class AgenteGBFS:
             self.camino = camino_reconstruido[1:]
             self.paso_actual_idx = 0
             
-def paso_gbfs(self, ambiente):
+    def paso_gbfs(self, ambiente):
         """
         Ejecuta el movimiento correspondiente al turno actual del agente.
         Valida las condiciones de victoria, disponibilidad de camino y colisiones dinámicas.
@@ -140,6 +142,9 @@ def paso_gbfs(self, ambiente):
             # Casilla libre: Avanza exitosamente
             self.pos_actual = siguiente_pos
             self.paso_actual_idx += 1
+            # Escape en el mismo turno en que se pisa la salida
+            if ambiente.matriz_3d[nf, nc, 0] == 2:
+                self.escapado = True
         else:
             # Casilla ocupada o inaccesible dinámicamente: Fuerza una re-planificación con GBFS
             self.calcular_ruta_gbfs(ambiente)

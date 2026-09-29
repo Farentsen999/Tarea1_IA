@@ -41,6 +41,6 @@ def convertir_mapa(ruta_archivo_entrada, ruta_archivo_salida):
 
 if __name__ == "__main__":
     # Nombre de los archivos de entrada y salida
-    ambientes_originales = ["resources/Claude_Ambiente1_64x64.txt", "resources/Claude_Ambiente2_64x64.txt", "resources/Claude_Ambiente3_64x64.txt"]
+    ambientes_originales = ["mapas/Claude_Ambiente1_64x64.txt", "mapas/Claude_Ambiente2_64x64.txt", "mapas/Claude_Ambiente3_64x64.txt"]
     for i in range(3):
         convertir_mapa(ambientes_originales[i], f"ambientes/ambiente{i+1}.txt")
